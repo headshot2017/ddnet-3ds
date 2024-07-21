@@ -279,6 +279,12 @@ static void ToMortonTexture(C3D_Tex* tex, u32* dst, u32* src, int originX, int o
 			mortonX = CalcZOrder(dstX & 0x07);
 			pixel   = src[x + (y * width)];
 
+			u8 r = pixel & 0xff;
+			u8 g = (pixel >> 8) & 0xff;
+			u8 b = (pixel >> 16) & 0xff;
+			u8 a = (pixel >> 24) & 0xff;
+			pixel = (a<<0) | (b<<8) | (g<<16) | (r<<24);
+
 			dst[(mortonX | mortonY) + (tileX * 8) + (tileY * tex->width)] = pixel;
 		}
 	}
