@@ -1,10 +1,13 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
+#include <unordered_map>
 #include <base/system.h>
 #include <engine/shared/config.h>
 #include <engine/graphics.h>
 #include <engine/input.h>
 #include <engine/keys.h>
+
+#include <3ds.h>
 
 #include "input.h"
 
@@ -14,6 +17,18 @@
 #define KEYS_INCLUDE
 #include "keynames.h"
 #undef KEYS_INCLUDE
+
+std::unordered_map<int, int> _3DSkeys = {
+	{KEY_LEFT, KEY_a},
+	{KEY_RIGHT, KEY_d},
+	{KEY_A, KEY_RETURN},
+	{KEY_B, KEY_SPACE},
+	{KEY_Y, KEY_MOUSE_1},
+	{KEY_TOUCH, KEY_MOUSE_1},
+	{KEY_L, KEY_MOUSE_2},
+	{KEY_R, KEY_MOUSE_WHEEL_DOWN},
+	{KEY_START, KEY_ESCAPE},
+};
 
 void CInput::AddEvent(int Unicode, int Key, int Flags)
 {
@@ -51,10 +66,18 @@ void CInput::Init()
 void CInput::MouseRelative(float *x, float *y)
 {
 	int nx = 0, ny = 0;
-	float Sens = ((g_Config.m_ClDyncam && g_Config.m_ClDyncamMousesens) ? g_Config.m_ClDyncamMousesens : g_Config.m_InpMousesens) / 100.0f;
 
-	*x = nx*Sens;
-	*y = ny*Sens;
+	touchPosition thisXY;
+	hidTouchRead(&thisXY);
+	//static touchPosition lastXY = {0,0,0,0};
+
+	nx = thisXY.px;
+	ny = thisXY.py;
+
+	//lastXY = thisXY;
+
+	*x = nx;
+	*y = ny;
 }
 
 void CInput::MouseModeAbsolute()
@@ -104,6 +127,34 @@ int CInput::Update()
 		mem_zero(&m_aInputCount[m_InputCurrent], sizeof(m_aInputCount[m_InputCurrent]));
 		mem_zero(&m_aInputState[m_InputCurrent], sizeof(m_aInputState[m_InputCurrent]));
 		m_InputDispatched = false;
+	}
+
+	hidScanInput();
+
+	u32 held = hidKeysHeld();
+	if (held & KEY_TOUCH || held & KEY_Y) m_aInputState[m_InputCurrent][KEY_MOUSE_1] = 1;
+	if (held & KEY_L) m_aInputState[m_InputCurrent][KEY_MOUSE_2] = 1;
+
+	u32 down = hidKeysDown();
+	int Key;
+
+	for(std::unordered_map<int, int>::iterator it = _3DSkeys.begin(); it != _3DSkeys.end(); ++it)
+	{
+		if (!(down & it->first)) continue;
+		Key = it->second;
+		m_aInputCount[m_InputCurrent][Key].m_Presses++;
+		m_aInputState[m_InputCurrent][Key] = 1;
+		AddEvent(0, Key, IInput::FLAG_PRESS);
+	}
+
+	u32 up = hidKeysUp();
+
+	for(std::unordered_map<int, int>::iterator it = _3DSkeys.begin(); it != _3DSkeys.end(); ++it)
+	{
+		if (!(up & it->first)) continue;
+		Key = it->second;
+		m_aInputCount[m_InputCurrent][Key].m_Presses++;
+		AddEvent(0, Key, IInput::FLAG_RELEASE);
 	}
 
 	/*
