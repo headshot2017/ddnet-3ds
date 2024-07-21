@@ -1,0 +1,24 @@
+name: 3DS build
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    container:
+      image: devkitpro/devkitarm:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile 3DS build
+        run: |
+          make
+
+      - name: Upload .3dsx artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: ./ddnet-3ds.3dsx
+
+      - name: Upload .elf artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: ./ddnet-3ds.elf
