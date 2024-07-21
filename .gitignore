@@ -1,0 +1,8 @@
+build/
+src/game/generated/
+__pycache__/
+*.elf
+*.3dsx
+*.cia
+*.smdh
+*.pyc
