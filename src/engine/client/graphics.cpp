@@ -240,9 +240,7 @@ int CGraphics_3DS::UnloadTexture(int Index)
 	if(Index < 0)
 		return 0;
 
-	linearFree(m_aTextures[Index].m_Tex.data);
-	m_aTextures[Index].m_Tex.data = 0;
-
+	C3D_TexDelete(&m_aTextures[Index].m_Tex);
 	m_aTextures[Index].m_Next = m_FirstFreeTexture;
 	m_TextureMemoryUsage -= m_aTextures[Index].m_MemSize;
 	m_FirstFreeTexture = Index;
@@ -334,25 +332,17 @@ int CGraphics_3DS::LoadTextureRaw(int Width, int Height, int Format, const void 
 
 	C3D_Tex* cTex = &m_aTextures[Tex].m_Tex;
 	C3D_TexInit(cTex, Width, Height, (PixelSize==4) ? GPU_RGBA8 : GPU_RGB8);
-	cTex->data = linearAlloc(Width*Height*PixelSize);
-	if (!cTex->data)
+	u32* data = (u32*)linearAlloc(Width*Height*PixelSize);
+	if (!data)
 	{
 		if (pTmpData) mem_free(pTmpData);
 		return m_InvalidTexture;
 	}
 
-	ToMortonTexture(cTex, (u32*)cTex->data, (u32*)pTexData, 0, 0, Width, Height);
+	ToMortonTexture(cTex, data, (u32*)pTexData, 0, 0, Width, Height);
 	if (pTmpData) mem_free(pTmpData);
-	void* vram = vramAlloc(cTex->size);
-	if (!vram)
-	{
-		if (pTmpData) mem_free(pTmpData);
-		linearFree(cTex->data);
-		return m_InvalidTexture;
-	}
-	C3D_SyncTextureCopy((u32*)cTex->data, 0, (u32*)vram, 0, cTex->size, 8);
-	linearFree(cTex->data);
-	cTex->data = vram;
+	C3D_TexUpload(cTex, data);
+	linearFree(data);
 
 	// calculate memory usage
 	{
