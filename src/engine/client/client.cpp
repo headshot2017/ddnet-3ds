@@ -2644,7 +2644,7 @@ void CClient::Run()
 	bool LastE = false;
 	bool LastG = false;
 
-	while (1)
+	while (aptMainLoop())
 	{
 		//
 		VersionUpdate();
