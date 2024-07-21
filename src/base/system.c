@@ -50,7 +50,7 @@
 	#if defined(__3DS__)
 		#include <3ds.h>
 		#include <malloc.h>
-		unsigned int __stacksize__ = 256 * 1024;
+		unsigned int __stacksize__ = 512 * 1024;
 	#endif
 
 #elif defined(CONF_FAMILY_WINDOWS)
