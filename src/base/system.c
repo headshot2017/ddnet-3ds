@@ -298,14 +298,14 @@ void dbg_logger_file(const char *filename)
 
 void *mem_alloc_debug(const char *filename, int line, unsigned size, unsigned alignment)
 {
-	return linearAlloc(size);
+	return malloc(size);
 }
 
 void mem_free(void *p)
 {
 	if(p)
 	{
-		linearFree(p);
+		free(p);
 	}
 }
 
