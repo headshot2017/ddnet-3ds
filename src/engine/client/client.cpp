@@ -947,12 +947,10 @@ void CClient::DebugRender()
 		total = 42
 	*/
 	FrameTimeAvg = FrameTimeAvg*0.9f + m_RenderFrameTime*0.1f;
-	str_format(aBuffer, sizeof(aBuffer), "ticks: %4d %4d gfxmem: %dk fps: %3d",
+	str_format(aBuffer, sizeof(aBuffer), "ticks: %4d %4d gfxmem: %dk",
 		m_CurGameTick[g_Config.m_ClDummy], m_PredTick[g_Config.m_ClDummy],
-		Graphics()->MemoryUsage()/1024,
-		(int)(1.0f/FrameTimeAvg + 0.5f));
+		Graphics()->MemoryUsage()/1024);
 	Graphics()->QuadsText(2, 2, 16, aBuffer);
-
 
 	{
 		int SendPackets = (Current.sent_packets-Prev.sent_packets);
@@ -989,6 +987,10 @@ void CClient::DebugRender()
 	str_format(aBuffer, sizeof(aBuffer), "pred: %d ms",
 		(int)((m_PredictedTime.Get(Now)-m_GameTime[g_Config.m_ClDummy].Get(Now))*1000/(float)time_freq()));
 	Graphics()->QuadsText(2, 70, 16, aBuffer);
+
+	str_format(aBuffer, sizeof(aBuffer), "fps: %3d", (int)(1.0f/FrameTimeAvg + 0.5f));
+	Graphics()->QuadsText(2, 82, 16, aBuffer);
+
 	Graphics()->QuadsEnd();
 
 	// render graphs
