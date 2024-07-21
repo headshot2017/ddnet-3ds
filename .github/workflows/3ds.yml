@@ -11,6 +11,7 @@ jobs:
 
       - name: Compile 3DS build
         run: |
+          git config --global --add safe.directory ./
           make
 
       - name: Upload .3dsx artifact
