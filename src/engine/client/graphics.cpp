@@ -347,6 +347,7 @@ int CGraphics_3DS::LoadTextureRaw(int Width, int Height, int Format, const void 
 
 	ToMortonTexture(cTex, data, (u32*)pTexData, 0, 0, Width, Height);
 	if (pTmpData) mem_free(pTmpData);
+	C3D_TexSetFilter(cTex, GPU_LINEAR, GPU_LINEAR);
 	C3D_TexUpload(cTex, data);
 	free(data);
 
