@@ -309,13 +309,15 @@ int CMenus::DoEditBox(void *pID, const CUIRect *pRect, char *pStr, unsigned StrS
 	if(Inside)
 	{
 		UI()->SetHotItem(pID);
-#if defined(__ANDROID__)
 		if(UI()->ActiveItem() == pID && UI()->MouseButtonClicked(0))
 		{
 			s_AtIndex = 0;
-			UI()->AndroidBlockAndGetTextInput(pStr, StrSize, "");
+
+			char buf[512] = {0};
+			ReturnValue |= UI()->BlockAndGetTextInput(pStr, StrSize, "", buf, sizeof(buf));
+			if (ReturnValue)
+				str_copy(pStr, buf, sizeof(buf));
 		}
-#endif
 	}
 
 	CUIRect Textbox = *pRect;
@@ -1602,9 +1604,7 @@ int CMenus::Render()
 void CMenus::SetActive(bool Active)
 {
 	m_MenuActive = Active;
-#if defined(__ANDROID__)
-	UI()->AndroidShowScreenKeys(!m_MenuActive && !m_pClient->m_pControls->m_UsingGamepad);
-#endif
+
 	if(!m_MenuActive)
 	{
 		if(m_NeedSendinfo)
@@ -1641,14 +1641,9 @@ bool CMenus::OnMouseMove(float x, float y)
 	if(!m_MenuActive)
 		return false;
 
-#if defined(__ANDROID__) // No relative mouse on Android
 	m_MousePos.x = x;
 	m_MousePos.y = y;
-#else
-	UI()->ConvertMouseMove(&x, &y);
-	m_MousePos.x += x;
-	m_MousePos.y += y;
-#endif
+
 	if(m_MousePos.x < 0) m_MousePos.x = 0;
 	if(m_MousePos.y < 0) m_MousePos.y = 0;
 	if(m_MousePos.x > Graphics()->ScreenWidth()) m_MousePos.x = Graphics()->ScreenWidth();

@@ -305,7 +305,13 @@ void CChat::EnableMode(int Team)
 
 		Input()->ClearEvents();
 		m_CompletionChosen = -1;
-		UI()->AndroidShowTextInput("", Team ? Localize("Team chat") : Localize("Chat"));
+
+		char msg[512] = {0};
+		int result = UI()->ShowTextInput("", Team ? Localize("Team chat") : Localize("Chat"), msg, sizeof(msg));
+		m_Mode = MODE_NONE;
+		m_pClient->OnRelease();
+		if (result)
+			Say(m_Mode == MODE_ALL ? 0 : 1, msg);
 	}
 }
 

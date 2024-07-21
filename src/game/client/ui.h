@@ -97,10 +97,9 @@ public:
 	void DoLabel(const CUIRect *pRect, const char *pText, float Size, int Align, int MaxWidth = -1);
 	void DoLabelScaled(const CUIRect *pRect, const char *pText, float Size, int Align, int MaxWidth = -1);
 
-	void AndroidShowScreenKeys(bool shown);
-	void AndroidShowTextInput(const char *text, const char *hintText);
-	void AndroidBlockAndGetTextInput(char *text, int textLength, const char *hintText);
-	bool AndroidTextInputShown();
+	int ShowTextInput(const char *text, const char *hintText, char *out, int outSize);
+	int BlockAndGetTextInput(char *text, int textLength, const char *hintText, char *out, int outSize);
+	bool TextInputShown();
 };
 
 
