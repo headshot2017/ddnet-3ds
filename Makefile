@@ -52,7 +52,11 @@ SOURCES		:=  \
 	src/game/editor \
 	src/game/generated \
 
-GENERATED   := client_data.cpp protocol.cpp nethash.cpp
+ifneq ($(wildcard $(TOPDIR)/src/game/generated/.*),)
+	GENERATED   :=
+else
+	GENERATED   := client_data.cpp protocol.cpp nethash.cpp
+endif
 
 APP_TITLE 	:= DDNet
 APP_DESCRIPTION := 3DS port
