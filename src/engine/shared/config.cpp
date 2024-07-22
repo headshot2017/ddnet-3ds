@@ -64,8 +64,9 @@ public:
 
 	virtual void Save()
 	{
-		if(!m_pStorage || !g_Config.m_ClSaveSettings)
+		if(!m_pStorage)
 			return;
+
 		m_ConfigFile = m_pStorage->OpenFile(CONFIG_FILE, IOFLAG_WRITE, IStorage::TYPE_SAVE);
 
 		if(!m_ConfigFile)
