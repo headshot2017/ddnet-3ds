@@ -897,7 +897,8 @@ void CGraphics_3DS::TakeCustomScreenshot(const char *pFilename)
 
 void CGraphics_3DS::Swap()
 {
-	C3D_FrameSync();
+	if (g_Config.m_GfxVsync)
+		C3D_FrameSync();
 }
 
 
