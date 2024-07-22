@@ -35,29 +35,34 @@ struct Shader {
 static Shader* currShader;
 static Shader shaders[2];
 static C3D_RenderTarget* bottomTarget;
+static int m_CurrVertices = 0;
+static int m_StartVertex = 0;
 
 void CGraphics_3DS::Flush()
 {
-	if(m_NumVertices == 0)
+	if(m_CurrVertices == 0)
 		return;
 
 	if(m_RenderEnable)
 	{
-		C3D_FrameBegin(0);
-			C3D_FrameDrawOn(bottomTarget);
-			C3D_DrawArrays(GPU_TRIANGLES, 0, m_NumVertices);
-		C3D_FrameEnd(0);
+		int ThisBatch = m_NumVertices - m_StartVertex;
+		C3D_DrawArrays(GPU_TRIANGLES, m_StartVertex, ThisBatch);
+		m_StartVertex = m_NumVertices;
 	}
 
 	// Reset pointer
-	m_NumVertices = 0;
+	m_CurrVertices = 0;
 }
 
 void CGraphics_3DS::AddVertices(int Count)
 {
 	m_NumVertices += Count;
+	m_CurrVertices += Count;
 	if((m_NumVertices + Count) >= MAX_VERTICES)
+	{
 		Flush();
+		Swap();
+	}
 }
 
 void CGraphics_3DS::Rotate(const CPoint &rCenter, CVertex *pPoints, int NumPoints)
@@ -135,7 +140,7 @@ CGraphics_3DS::CGraphics_3DS()
 
 void CGraphics_3DS::ClipEnable(int x, int y, int w, int h)
 {
-	C3D_SetScissor(GPU_SCISSOR_NORMAL, x, y, x+w, y+h);
+	//C3D_SetScissor(GPU_SCISSOR_NORMAL, x, y, x+w, y+h);
 }
 
 void CGraphics_3DS::ClipDisable()
@@ -843,6 +848,9 @@ int CGraphics_3DS::Init()
 
 	m_InvalidTexture = LoadTextureRaw(4,4,CImageInfo::FORMAT_RGBA,aNullTextureData,CImageInfo::FORMAT_RGBA,TEXLOAD_NORESAMPLE);
 
+	C3D_FrameBegin((g_Config.m_GfxVsync) ? C3D_FRAME_SYNCDRAW : 0);
+	C3D_FrameDrawOn(bottomTarget);
+
 	return 0;
 }
 
@@ -897,8 +905,12 @@ void CGraphics_3DS::TakeCustomScreenshot(const char *pFilename)
 
 void CGraphics_3DS::Swap()
 {
-	if (g_Config.m_GfxVsync)
-		C3D_FrameSync();
+	C3D_FrameEnd(0);
+	m_StartVertex = 0;
+	m_NumVertices = 0;
+
+	C3D_FrameBegin((g_Config.m_GfxVsync) ? C3D_FRAME_SYNCDRAW : 0);
+	C3D_FrameDrawOn(bottomTarget);
 }
 
 
