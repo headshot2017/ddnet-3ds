@@ -920,7 +920,6 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 			s_GfxColorDepth == g_Config.m_GfxColorDepth &&
 			s_GfxBorderless == g_Config.m_GfxBorderless &&
 			s_GfxFullscreen == g_Config.m_GfxFullscreen &&
-			s_GfxVsync == g_Config.m_GfxVsync &&
 			s_GfxFsaaSamples == g_Config.m_GfxFsaaSamples &&
 			s_GfxTextureQuality == g_Config.m_GfxTextureQuality &&
 			s_GfxTextureCompression == g_Config.m_GfxTextureCompression)
