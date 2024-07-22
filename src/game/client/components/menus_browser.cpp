@@ -614,6 +614,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 
 		UI()->DoLabelScaled(&Button, Localize("Maximum ping:"), FontSize, -1);
 
+		g_Config.m_BrFilterPing = 999;
 		char aBuf[5];
 		str_format(aBuf, sizeof(aBuf), "%d", g_Config.m_BrFilterPing);
 		static float Offset = 0.0f;
