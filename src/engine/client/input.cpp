@@ -21,6 +21,7 @@
 std::unordered_map<int, int> _3DSkeys = {
 	{KEY_LEFT, KEY_a},
 	{KEY_RIGHT, KEY_d},
+	{KEY_UP, KEY_SPACE},
 	{KEY_A, KEY_RETURN},
 	{KEY_B, KEY_SPACE},
 	{KEY_Y, KEY_MOUSE_1},
