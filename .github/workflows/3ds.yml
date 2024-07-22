@@ -16,6 +16,7 @@ jobs:
       - name: Upload .3dsx artifact
         uses: actions/upload-artifact@v4
         with:
+          name: .3dsx ROM
           path: ./ddnet-3ds.3dsx
 
       - name: Upload .elf artifact
