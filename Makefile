@@ -50,7 +50,9 @@ SOURCES		:=  \
 	src/game/client \
 	src/game/client/components \
 	src/game/editor \
-	src/game/generated
+	src/game/generated \
+
+GENERATED   := client_data.cpp protocol.cpp nethash.cpp
 
 APP_TITLE 	:= DDNet
 APP_DESCRIPTION := 3DS port
@@ -101,7 +103,7 @@ export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
-CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
+CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp))) $(GENERATED)
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 PICAFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.v.pica)))
 SHLISTFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.shlist)))
@@ -180,8 +182,16 @@ endif
 .PHONY: all clean
 
 #---------------------------------------------------------------------------------
-all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
+all: src/game/generated $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+
+src/game/generated:
+	@mkdir -p $@
+	python datasrc/compile.py network_source > $@/protocol.cpp
+	python datasrc/compile.py network_header > $@/protocol.h
+	python datasrc/compile.py client_content_source > $@/client_data.cpp
+	python datasrc/compile.py client_content_header > $@/client_data.h
+	python scripts/cmd5.py src/engine/shared/protocol.h $@/protocol.h src/game/tuning.h src/game/gamecore.cpp $@/protocol.h > $@/nethash.cpp
 
 $(BUILD):
 	@mkdir -p $@
@@ -199,7 +209,7 @@ endif
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf $(GFXBUILD)
+	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf $(GFXBUILD) $(TOPDIR)/src/game/generated
 
 #---------------------------------------------------------------------------------
 $(GFXBUILD)/%.t3x	$(BUILD)/%.h	:	%.t3s
@@ -217,15 +227,7 @@ $(OUTPUT).3dsx	:	$(OUTPUT).elf $(_3DSXDEPS)
 
 $(OFILES_SOURCES) : $(HFILES)
 
-$(OUTPUT).elf	:	$(TOPDIR)/src/game/generated $(OFILES)
-
-$(TOPDIR)/src/game/generated:
-	[ -d $@ ] || mkdir -p $@
-	cd $(TOPDIR) && python $(TOPDIR)/datasrc/compile.py network_source > $@/protocol.cpp
-	cd $(TOPDIR) && python $(TOPDIR)/datasrc/compile.py network_header > $@/protocol.h
-	cd $(TOPDIR) && python $(TOPDIR)/datasrc/compile.py client_content_source > $@/client_data.cpp
-	cd $(TOPDIR) && python datasrc/compile.py client_content_header > $@/client_data.h
-	cd $(TOPDIR) && python scripts/cmd5.py src/engine/shared/protocol.h $@/protocol.h src/game/tuning.h src/game/gamecore.cpp $@/protocol.h > $@/nethash.cpp
+$(OUTPUT).elf	:	$(OFILES)
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data
