@@ -701,6 +701,7 @@ int CMenus::RenderMenubar(CUIRect r)
 	if(DoButton_MenuTab(&s_SettingsButton, "⚙", m_ActivePage==PAGE_SETTINGS, &Button, CUI::CORNER_T))
 		NewPage = PAGE_SETTINGS;
 
+	/*
 	Box.VSplitRight(10.0f, &Box, &Button);
 	Box.VSplitRight(30.0f, &Box, &Button);
 	static int s_EditorButton=0;
@@ -708,6 +709,7 @@ int CMenus::RenderMenubar(CUIRect r)
 	{
 		g_Config.m_ClEditor = 1;
 	}
+	*/
 
 	if(NewPage != -1)
 	{
