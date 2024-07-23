@@ -28,9 +28,10 @@ enum
 struct CSample
 {
 	short *m_pData;
-	int m_NumFrames;
-	int m_Rate;
-	int m_Channels;
+	u32 m_NumFrames;
+	float m_Rate;
+	u32 m_Channels;
+	u16 m_Format;
 	int m_LoopStart;
 	int m_LoopEnd;
 	int m_PausedAt;
@@ -71,7 +72,7 @@ static LOCK m_SoundLock = 0;
 static int m_CenterX = 0;
 static int m_CenterY = 0;
 
-static int m_MixingRate = 48000;
+static float m_MixingRate = 48000;
 static volatile int m_SoundVolume = 100;
 
 static int m_NextVoice = 0;
@@ -108,7 +109,7 @@ int CSound::Init()
 	m_pGraphics = Kernel()->RequestInterface<IEngineGraphics>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
 
-	m_SoundLock = lock_create();
+	// m_SoundLock = lock_create();
 
 	if(!g_Config.m_SndEnable)
 		return 0;
@@ -247,7 +248,7 @@ int CSound::Update()
 
 int CSound::Shutdown()
 {
-	lock_destroy(m_SoundLock);
+	// lock_destroy(m_SoundLock);
 	ndspExit();
 	return 0;
 }
@@ -267,7 +268,7 @@ int CSound::AllocID()
 void CSound::RateConvert(int SampleID)
 {
 	CSample *pSample = &m_aSamples[SampleID];
-	int NumFrames = 0;
+	u32 NumFrames = 0;
 	short *pNewData = 0;
 
 	// make sure that we need to convert this sound
@@ -275,14 +276,14 @@ void CSound::RateConvert(int SampleID)
 		return;
 
 	// allocate new data
-	NumFrames = (int)((pSample->m_NumFrames/(float)pSample->m_Rate)*m_MixingRate);
+	NumFrames = (u32)((pSample->m_NumFrames/pSample->m_Rate)*m_MixingRate);
 	pNewData = (short *)mem_alloc(NumFrames*pSample->m_Channels*sizeof(short), 1);
 
-	for(int i = 0; i < NumFrames; i++)
+	for(u32 i = 0; i < NumFrames; i++)
 	{
 		// resample TODO: this should be done better, like linear atleast
 		float a = i/(float)NumFrames;
-		int f = (int)(a*pSample->m_NumFrames);
+		u32 f = (u32)(a*pSample->m_NumFrames);
 		if(f >= pSample->m_NumFrames)
 			f = pSample->m_NumFrames-1;
 
@@ -321,10 +322,11 @@ int CSound::DecodeOpus(int SampleID, const void *pData, unsigned DataSize)
 	OggOpusFile *OpusFile = op_open_memory((const unsigned char *) pData, DataSize, NULL);
 	if (OpusFile)
 	{
-		int NumChannels = op_channel_count(OpusFile, -1);
-		int NumSamples = op_pcm_total(OpusFile, -1); // per channel!
+		u32 NumChannels = op_channel_count(OpusFile, -1);
+		u32 NumSamples = op_pcm_total(OpusFile, -1); // per channel!
 
 		pSample->m_Channels = NumChannels;
+		pSample->m_Format = (NumChannels == 2) ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16;
 
 		if(pSample->m_Channels > 2)
 		{
@@ -334,8 +336,8 @@ int CSound::DecodeOpus(int SampleID, const void *pData, unsigned DataSize)
 
 		pSample->m_pData = (short *)mem_alloc(NumSamples * sizeof(short) * NumChannels, 1);
 
-		int Read;
-		int Pos = 0;
+		u32 Read;
+		u32 Pos = 0;
 		while (Pos < NumSamples)
 		{
 			Read = op_read(OpusFile, pSample->m_pData + Pos*NumChannels, NumSamples*NumChannels, NULL);
@@ -373,13 +375,13 @@ int CSound::DecodeWV(int SampleID, const void *pData, unsigned DataSize)
 	pContext = WavpackOpenFileInput(ReadData, aError);
 	if (pContext)
 	{
-		int NumSamples = WavpackGetNumSamples(pContext);
+		u32 NumSamples = WavpackGetNumSamples(pContext);
 		int BitsPerSample = WavpackGetBitsPerSample(pContext);
-		unsigned int SampleRate = WavpackGetSampleRate(pContext);
-		int NumChannels = WavpackGetNumChannels(pContext);
+		float SampleRate = WavpackGetSampleRate(pContext);
+		u32 NumChannels = WavpackGetNumChannels(pContext);
 		long int *pSrc;
 		short *pDst;
-		int i;
+		u32 i;
 
 		pSample->m_Channels = NumChannels;
 		pSample->m_Rate = SampleRate;
@@ -395,6 +397,8 @@ int CSound::DecodeWV(int SampleID, const void *pData, unsigned DataSize)
 			dbg_msg("sound/wv", "bps is %d, not 16", BitsPerSample);
 			return -1;
 		}
+
+		pSample->m_Format = (NumChannels == 2) ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16;
 
 		long int *pBuffer = (long int *)mem_alloc(4*NumSamples*NumChannels, 1);
 		WavpackUnpackSamples(pContext, pBuffer, NumSamples); // TODO: check return value
@@ -521,20 +525,18 @@ int CSound::LoadWV(const char *pFilename)
 
 	RateConvert(SampleID);
 
-	int sampleSize = 2 * m_aSamples[SampleID].m_Channels * m_aSamples[SampleID].m_NumFrames;
+	u32 sampleSize = 2 * m_aSamples[SampleID].m_Channels * m_aSamples[SampleID].m_NumFrames;
 	sampleSize = (sampleSize + 0x7f) & ~0x7f;
 	short *pNewFrames = (short*)linearAlloc(sampleSize);
 	short *pSrc = m_aSamples[SampleID].m_pData;
 	short *pDst = pNewFrames;
 	if (pDst)
 	{
-		for (int i=0; i < m_aSamples[SampleID].m_Channels * m_aSamples[SampleID].m_NumFrames; i++)
+		for (u32 i=0; i < m_aSamples[SampleID].m_Channels * m_aSamples[SampleID].m_NumFrames; i++)
 			*pDst++ = *pSrc++;
 		mem_free(m_aSamples[SampleID].m_pData);
 		m_aSamples[SampleID].m_pData = pNewFrames;
 	}
-	else
-		dbg_msg("a", "oops... %s", pFilename);
 
 	return SampleID;
 }
@@ -662,7 +664,8 @@ void CSound::SetVoiceTimeOffset(CVoiceHandle Voice, float offset)
 	if(m_aVoices[VoiceID].m_Age != Voice.Age())
 		return;
 
-	lock_wait(m_SoundLock);
+	// lock_wait(m_SoundLock);
+	/*
 	{
 		if(m_aVoices[VoiceID].m_pSample)
 		{
@@ -686,7 +689,8 @@ void CSound::SetVoiceTimeOffset(CVoiceHandle Voice, float offset)
 			}
 		}
 	}
-	lock_unlock(m_SoundLock);
+	*/
+	// lock_unlock(m_SoundLock);
 }
 
 void CSound::SetVoiceCircle(CVoiceHandle Voice, float Radius)
@@ -730,7 +734,7 @@ ISound::CVoiceHandle CSound::Play(int ChannelID, int SampleID, int Flags, float 
 	int Age = -1;
 	int i;
 
-	lock_wait(m_SoundLock);
+	// lock_wait(m_SoundLock);
 
 	// search for voice
 	for(i = 0; i < NUM_VOICES; i++)
@@ -763,19 +767,19 @@ ISound::CVoiceHandle CSound::Play(int ChannelID, int SampleID, int Flags, float 
 		m_aVoices[VoiceID].m_Circle.m_Radius = DefaultDistance;
 		Age = m_aVoices[VoiceID].m_Age;
 
-		int fmt = (m_aSamples[SampleID].m_Channels == 2) ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16;
 
-		ndspChnSetFormat(VoiceID, fmt);
+		ndspChnReset(VoiceID);
+		ndspChnSetFormat(VoiceID, m_aSamples[SampleID].m_Format);
 		ndspChnSetRate(VoiceID, m_aSamples[SampleID].m_Rate);
-		buf->looping = !!(Flags & FLAG_LOOP);
 
+		buf->looping    = !!(Flags & FLAG_LOOP);
 		buf->data_pcm16 = m_aSamples[SampleID].m_pData;
 		buf->nsamples   = m_aSamples[SampleID].m_NumFrames;
-		DSP_FlushDataCache(buf->data_pcm16, m_aSamples[SampleID].m_NumFrames);
+		DSP_FlushDataCache(buf->data_pcm16, buf->nsamples);
 		ndspChnWaveBufAdd(VoiceID, buf);
 	}
 
-	lock_unlock(m_SoundLock);
+	// lock_unlock(m_SoundLock);
 	return CreateVoiceHandle(VoiceID, Age);
 }
 
@@ -792,7 +796,7 @@ ISound::CVoiceHandle CSound::Play(int ChannelID, int SampleID, int Flags)
 void CSound::Stop(int SampleID)
 {
 	// TODO: a nice fade out
-	lock_wait(m_SoundLock);
+	// lock_wait(m_SoundLock);
 	CSample *pSample = &m_aSamples[SampleID];
 	for(int i = 0; i < NUM_VOICES; i++)
 	{
@@ -806,13 +810,13 @@ void CSound::Stop(int SampleID)
 			ndspChnWaveBufClear(i);
 		}
 	}
-	lock_unlock(m_SoundLock);
+	// lock_unlock(m_SoundLock);
 }
 
 void CSound::StopAll()
 {
 	// TODO: a nice fade out
-	lock_wait(m_SoundLock);
+	// lock_wait(m_SoundLock);
 	for(int i = 0; i < NUM_VOICES; i++)
 	{
 		if(m_aVoices[i].m_pSample)
@@ -825,7 +829,7 @@ void CSound::StopAll()
 		m_aVoices[i].m_pSample = 0;
 		ndspChnWaveBufClear(i);
 	}
-	lock_unlock(m_SoundLock);
+	// lock_unlock(m_SoundLock);
 }
 
 void CSound::StopVoice(CVoiceHandle Voice)
@@ -838,14 +842,13 @@ void CSound::StopVoice(CVoiceHandle Voice)
 	if(m_aVoices[VoiceID].m_Age != Voice.Age())
 		return;
 
-	ndspChnWaveBufClear(VoiceID);
-
-	lock_wait(m_SoundLock);
+	// lock_wait(m_SoundLock);
 	{
 		m_aVoices[VoiceID].m_pSample = 0;
 		m_aVoices[VoiceID].m_Age++;
+		ndspChnWaveBufClear(VoiceID);
 	}
-	lock_unlock(m_SoundLock);
+	// lock_unlock(m_SoundLock);
 }
 
 
