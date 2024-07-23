@@ -11,6 +11,7 @@ jobs:
 
       - name: Compile makerom
         run: |
+          sudo apt install -y gcc
           mkdir -p build
           wget https://github.com/3DSGuy/Project_CTR/archive/refs/tags/makerom-v0.18.4.zip
           unzip makerom-v0.18.4.zip
