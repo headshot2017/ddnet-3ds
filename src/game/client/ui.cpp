@@ -79,6 +79,7 @@ int CUI::ShowTextInput(const char *text, const char *hintText, char *out, int ou
 	swkbdSetHintText(&swkbd, hintText);
 
 	int btn = swkbdInputText(&swkbd, out, outSize);
+	consoleInit(GFX_TOP, NULL);
 	return btn == SWKBD_BUTTON_CONFIRM;
 #else
 	return 0;
@@ -94,6 +95,7 @@ int CUI::BlockAndGetTextInput(char *text, int textLength, const char *hintText, 
 	swkbdSetHintText(&swkbd, hintText);
 
 	int btn = swkbdInputText(&swkbd, out, outSize);
+	consoleInit(GFX_TOP, NULL);
 	return btn == SWKBD_BUTTON_CONFIRM;
 #else
 	return 0;
