@@ -600,6 +600,8 @@ void CChat::OnRender()
 	float Begin = x;
 #if defined(__ANDROID__)
 	float FontSize = 10.0f;
+#elif defined(__3DS__)
+	float FontSize = 9.0f;
 #else
 	float FontSize = 6.0f;
 #endif
