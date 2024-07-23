@@ -9,6 +9,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Compile makerom
+        run: |
+          mkdir -p build
+          wget https://github.com/3DSGuy/Project_CTR/archive/refs/tags/makerom-v0.18.4.zip
+          unzip makerom-v0.18.4.zip
+          cd Project_CTR-makerom-v0.18.4/makerom
+          make deps
+          make
+          cp bin/makerom ../../build
+
       - name: Compile 3DS build
         run: |
           make
