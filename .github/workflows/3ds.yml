@@ -13,11 +13,17 @@ jobs:
         run: |
           make
 
+      - name: Move into folder
+        run: |
+          mkdir -p 3ds/ddnet
+          cp ddnet-3ds.3dsx 3ds/
+          cp -r data/* 3ds/ddnet/
+
       - name: Upload .3dsx artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ddnet-3ds.3dsx
-          path: ./ddnet-3ds.3dsx
+          name: 3DS ROM
+          path: ./3ds
 
       - name: Upload .elf artifact
         uses: actions/upload-artifact@v4
