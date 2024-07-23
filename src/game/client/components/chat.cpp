@@ -311,7 +311,7 @@ void CChat::EnableMode(int Team)
 		m_Mode = MODE_NONE;
 		m_pClient->OnRelease();
 		if (result)
-			Say(m_Mode == MODE_ALL ? 0 : 1, msg);
+			Say(m_Mode, msg);
 	}
 }
 
