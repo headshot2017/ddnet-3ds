@@ -34,8 +34,14 @@ jobs:
       - name: Upload .3dsx artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 3DS ROM
+          name: 3DS ROM with data
           path: ./artifact
+
+      - name: Upload .cia artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3DS .cia
+          path: ./ddnet-3ds.cia
 
       - name: Upload .elf artifact
         uses: actions/upload-artifact@v4
