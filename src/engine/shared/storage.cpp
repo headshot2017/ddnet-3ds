@@ -162,7 +162,7 @@ public:
 	void FindDatadir(const char *pArgv0)
 	{
 		str_copy(m_aDatadir, "sdmc:/3ds/ddnet", sizeof(m_aDatadir));
-		str_copy(m_aBinarydir, "sdmc:/3ds", sizeof(m_aBinarydir));
+		str_copy(m_aBinarydir, "sdmc:/3ds/ddnet", sizeof(m_aBinarydir));
 	}
 
 
