@@ -230,17 +230,29 @@ int CSound::Update()
 		mix[1] = Rvol/255.f;
 		ndspChnSetMix(i, mix);
 
-		// free voice if not used any more
 		if(!ndspChnIsPlaying(i))
 		{
-			if(v->m_Flags&ISound::FLAG_LOOP)
-				v->m_Tick = 0;
+			if (!v->m_Tick)
+			{
+				// play sound
+				ndspWaveBuf* buf = &m_aVoices[i].m_WaveBuf;
+				DSP_FlushDataCache(buf->data_pcm16, buf->nsamples);
+				ndspChnWaveBufAdd(i, buf);
+			}
 			else
 			{
-				v->m_pSample = 0;
-				v->m_Age++;
+				// loop sound or free this voice
+				if(v->m_Flags&ISound::FLAG_LOOP)
+					v->m_Tick = 0;
+				else
+				{
+					v->m_pSample = 0;
+					v->m_Age++;
+				}
 			}
 		}
+
+		v->m_Tick++;
 	}
 
 	return 0;
@@ -754,10 +766,7 @@ ISound::CVoiceHandle CSound::Play(int ChannelID, int SampleID, int Flags, float 
 		ndspWaveBuf* buf = &m_aVoices[VoiceID].m_WaveBuf;
 		m_aVoices[VoiceID].m_pSample = &m_aSamples[SampleID];
 		m_aVoices[VoiceID].m_pChannel = &m_aChannels[ChannelID];
-		if(Flags & FLAG_LOOP)
-			m_aVoices[VoiceID].m_Tick = m_aSamples[SampleID].m_PausedAt;
-		else
-			m_aVoices[VoiceID].m_Tick = 0;
+		m_aVoices[VoiceID].m_Tick = 0;
 		m_aVoices[VoiceID].m_Vol = 255;
 		m_aVoices[VoiceID].m_Flags = Flags;
 		m_aVoices[VoiceID].m_X = (int)x;
@@ -775,8 +784,6 @@ ISound::CVoiceHandle CSound::Play(int ChannelID, int SampleID, int Flags, float 
 		buf->looping    = !!(Flags & FLAG_LOOP);
 		buf->data_pcm16 = m_aSamples[SampleID].m_pData;
 		buf->nsamples   = m_aSamples[SampleID].m_NumFrames;
-		DSP_FlushDataCache(buf->data_pcm16, buf->nsamples);
-		ndspChnWaveBufAdd(VoiceID, buf);
 	}
 
 	// lock_unlock(m_SoundLock);
