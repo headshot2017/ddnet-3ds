@@ -2,7 +2,7 @@
 
 Port of DDNet 9 to the Nintendo 3DS.
 
-![image](screenshot.png)
+![image](screenshot_.png)
 
 To compile, install [devkitARM](https://devkitpro.org/wiki/Getting_Started) with 3DS development environment, install dependencies `3ds-curl`, `3ds-mbedtls`, `3ds-libopus`, `3ds-opusfile`, `3ds-libogg`, and run `make`.
 

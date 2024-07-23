@@ -1,5 +1,7 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
+#include <3ds.h>
+
 #include <base/math.h>
 #include <base/system.h>
 
@@ -112,6 +114,8 @@ int CSound::Init()
 
 	m_MixingRate = g_Config.m_SndRate;
 
+	ndspInit();
+
 	m_SoundEnabled = 1;
 	Update(); // update the volume
 	return 0;
@@ -138,6 +142,7 @@ int CSound::Update()
 int CSound::Shutdown()
 {
 	lock_destroy(m_SoundLock);
+	ndspExit();
 	return 0;
 }
 
