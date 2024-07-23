@@ -111,7 +111,7 @@ void CFetcher::FetchFile(CFetchTask *pTask)
 	}
 
 	char aCAFile[512];
-	m_pStorage->GetBinaryPath("data/ca-ddnet.pem", aCAFile, sizeof aCAFile);
+	m_pStorage->GetBinaryPath("ddnet/ca-ddnet.pem", aCAFile, sizeof aCAFile);
 
 	char aErr[CURL_ERROR_SIZE];
 	curl_easy_setopt(m_pHandle, CURLOPT_ERRORBUFFER, aErr);
