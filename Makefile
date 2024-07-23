@@ -58,8 +58,8 @@ else
 	GENERATED   := client_data.cpp protocol.cpp nethash.cpp
 endif
 
-APP_TITLE 	:= DDNet
-APP_DESCRIPTION := 3DS port
+APP_TITLE 	:= DDNet 3DS
+APP_DESCRIPTION := DDNet 3DS
 APP_AUTHOR 	:= Headshotnoby
 
 CIA_BANNER_BIN	:= $(TOPDIR)/cia/banner.bin
