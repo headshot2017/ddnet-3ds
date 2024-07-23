@@ -589,7 +589,10 @@ int64 time_get()
 	if(new_tick != -1)
 		new_tick = 0;
 
-#if defined(CONF_FAMILY_UNIX)
+#if defined(__3DS__)
+	last = svcGetSystemTick() * time_freq() / SYSCLOCK_ARM11;
+	return last;
+#elif defined(CONF_FAMILY_UNIX)
 	struct timeval val;
 	gettimeofday(&val, NULL);
 	last = (int64)val.tv_sec*(int64)1000000+(int64)val.tv_usec;
