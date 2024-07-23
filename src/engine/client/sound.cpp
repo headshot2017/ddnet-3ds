@@ -21,7 +21,7 @@ extern "C" { // wavpack
 enum
 {
 	NUM_SAMPLES = 512,
-	NUM_VOICES = 256,
+	NUM_VOICES = 24,
 	NUM_CHANNELS = 16,
 };
 
@@ -46,6 +46,7 @@ struct CVoice
 {
 	CSample *m_pSample;
 	CChannel *m_pChannel;
+	ndspWaveBuf m_WaveBuf;
 	int m_Age; // increases when reused
 	int m_Tick;
 	int m_Vol; // 0 - 255
@@ -115,6 +116,7 @@ int CSound::Init()
 	m_MixingRate = g_Config.m_SndRate;
 
 	ndspInit();
+	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
 
 	m_SoundEnabled = 1;
 	Update(); // update the volume
@@ -123,17 +125,121 @@ int CSound::Init()
 
 int CSound::Update()
 {
-	// update volume
-	int WantedVolume = g_Config.m_SndVolume;
-
-	if(!m_pGraphics->WindowActive() && g_Config.m_SndNonactiveMute)
-		WantedVolume = 0;
-
-	if(WantedVolume != m_SoundVolume)
+	for (int i = 0; i < NUM_VOICES; i++) 
 	{
-		lock_wait(m_SoundLock);
-		m_SoundVolume = WantedVolume;
-		lock_unlock(m_SoundLock);
+		if (!m_aVoices[i].m_pSample) continue;
+
+		CVoice *v = &m_aVoices[i];
+
+		int Rvol = (int)(v->m_pChannel->m_Vol*(v->m_Vol/255.0f));
+		int Lvol = (int)(v->m_pChannel->m_Vol*(v->m_Vol/255.0f));
+
+		// volume calculation
+		if(v->m_Flags&ISound::FLAG_POS && v->m_pChannel->m_Pan)
+		{
+			// TODO: we should respect the channel panning value
+			int dx = v->m_X - m_CenterX;
+			int dy = v->m_Y - m_CenterY;
+			//
+			int p = IntAbs(dx);
+			float FalloffX = 0.0f;
+			float FalloffY = 0.0f;
+
+			int RangeX = 0; // for panning
+			bool InVoiceField = false;
+
+			switch(v->m_Shape)
+			{
+			case ISound::SHAPE_CIRCLE:
+				{
+					float r = v->m_Circle.m_Radius;
+					RangeX = r;
+
+					int Dist = (int)sqrtf((float)dx*dx+dy*dy); // nasty float
+					if(Dist < r)
+					{
+						InVoiceField = true;
+
+						// falloff
+						int FalloffDistance = r*v->m_Falloff;
+						if(Dist > FalloffDistance)
+							FalloffX = FalloffY = (r-Dist)/(r-FalloffDistance);
+						else
+							FalloffX = FalloffY = 1.0f;
+					}
+					else
+						InVoiceField = false;
+
+					break;
+				}
+
+			case ISound::SHAPE_RECTANGLE:
+				{
+					RangeX = v->m_Rectangle.m_Width/2.0f;
+
+					int abs_dx = abs(dx);
+					int abs_dy = abs(dy);
+
+					int w = v->m_Rectangle.m_Width/2.0f;
+					int h = v->m_Rectangle.m_Height/2.0f;
+
+					if(abs_dx < w && abs_dy < h)
+					{
+						InVoiceField = true;
+
+						// falloff
+						int fx = v->m_Falloff * w;
+						int fy = v->m_Falloff * h;
+
+						FalloffX = abs_dx > fx ? (float)(w-abs_dx)/(w-fx) : 1.0f;
+						FalloffY = abs_dy > fy ? (float)(h-abs_dy)/(h-fy) : 1.0f;
+					}
+					else
+						InVoiceField = false;
+
+					break;
+				}
+			};
+
+			if(InVoiceField)
+			{
+				// panning
+				if(!(v->m_Flags&ISound::FLAG_NO_PANNING))
+				{
+					if(dx > 0)
+						Lvol = ((RangeX-p)*Lvol)/RangeX;
+					else
+						Rvol = ((RangeX-p)*Rvol)/RangeX;
+				}
+
+				{
+					Lvol *= FalloffX;
+					Rvol *= FalloffY;
+				}
+			}
+			else
+			{
+				Lvol = 0;
+				Rvol = 0;
+			}
+		}
+
+		float mix[12] = {0.f};
+		mix[0] = Lvol/255.f;
+		mix[1] = Rvol/255.f;
+		ndspChnSetMix(i, mix);
+
+		// free voice if not used any more
+		if(!ndspChnIsPlaying(i))
+		{
+			if(v->m_Flags&ISound::FLAG_LOOP)
+				v->m_Tick = 0;
+			else
+			{
+				v->m_pSample = 0;
+				v->m_Age++;
+			}
+		}
 	}
 
 	return 0;
@@ -414,6 +520,22 @@ int CSound::LoadWV(const char *pFilename)
 		dbg_msg("sound/wv", "loaded %s", pFilename);
 
 	RateConvert(SampleID);
+
+	int sampleSize = 2 * m_aSamples[SampleID].m_Channels * m_aSamples[SampleID].m_NumFrames;
+	sampleSize = (sampleSize + 0x7f) & ~0x7f;
+	short *pNewFrames = (short*)linearAlloc(sampleSize);
+	short *pSrc = m_aSamples[SampleID].m_pData;
+	short *pDst = pNewFrames;
+	if (pDst)
+	{
+		for (int i=0; i < m_aSamples[SampleID].m_Channels * m_aSamples[SampleID].m_NumFrames; i++)
+			*pDst++ = *pSrc++;
+		mem_free(m_aSamples[SampleID].m_pData);
+		m_aSamples[SampleID].m_pData = pNewFrames;
+	}
+	else
+		dbg_msg("a", "oops... %s", pFilename);
+
 	return SampleID;
 }
 
@@ -469,7 +591,7 @@ void CSound::UnloadSample(int SampleID)
 		return;
 
 	Stop(SampleID);
-	mem_free(m_aSamples[SampleID].m_pData);
+	linearFree(m_aSamples[SampleID].m_pData);
 
 	m_aSamples[SampleID].m_pData = 0x0;
 }
@@ -625,6 +747,7 @@ ISound::CVoiceHandle CSound::Play(int ChannelID, int SampleID, int Flags, float 
 	// voice found, use it
 	if(VoiceID != -1)
 	{
+		ndspWaveBuf* buf = &m_aVoices[VoiceID].m_WaveBuf;
 		m_aVoices[VoiceID].m_pSample = &m_aSamples[SampleID];
 		m_aVoices[VoiceID].m_pChannel = &m_aChannels[ChannelID];
 		if(Flags & FLAG_LOOP)
@@ -639,6 +762,17 @@ ISound::CVoiceHandle CSound::Play(int ChannelID, int SampleID, int Flags, float 
 		m_aVoices[VoiceID].m_Shape = ISound::SHAPE_CIRCLE;
 		m_aVoices[VoiceID].m_Circle.m_Radius = DefaultDistance;
 		Age = m_aVoices[VoiceID].m_Age;
+
+		int fmt = (m_aSamples[SampleID].m_Channels == 2) ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16;
+
+		ndspChnSetFormat(VoiceID, fmt);
+		ndspChnSetRate(VoiceID, m_aSamples[SampleID].m_Rate);
+		buf->looping = !!(Flags & FLAG_LOOP);
+
+		buf->data_pcm16 = m_aSamples[SampleID].m_pData;
+		buf->nsamples   = m_aSamples[SampleID].m_NumFrames;
+		DSP_FlushDataCache(buf->data_pcm16, m_aSamples[SampleID].m_NumFrames);
+		ndspChnWaveBufAdd(VoiceID, buf);
 	}
 
 	lock_unlock(m_SoundLock);
@@ -669,6 +803,7 @@ void CSound::Stop(int SampleID)
 			else
 				m_aVoices[i].m_pSample->m_PausedAt = 0;
 			m_aVoices[i].m_pSample = 0;
+			ndspChnWaveBufClear(i);
 		}
 	}
 	lock_unlock(m_SoundLock);
@@ -688,6 +823,7 @@ void CSound::StopAll()
 				m_aVoices[i].m_pSample->m_PausedAt = 0;
 		}
 		m_aVoices[i].m_pSample = 0;
+		ndspChnWaveBufClear(i);
 	}
 	lock_unlock(m_SoundLock);
 }
@@ -701,6 +837,8 @@ void CSound::StopVoice(CVoiceHandle Voice)
 
 	if(m_aVoices[VoiceID].m_Age != Voice.Age())
 		return;
+
+	ndspChnWaveBufClear(VoiceID);
 
 	lock_wait(m_SoundLock);
 	{
