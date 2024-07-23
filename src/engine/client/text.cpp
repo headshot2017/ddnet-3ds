@@ -123,7 +123,16 @@ public:
 	std::vector<KerningPairsBlock>& Kernings() {return kernings;}
 	const int Texture() const {return m_TextureID;}
 
-	BMFont(IGraphics* Graphics, IStorage* Storage) : m_pGraphics(Graphics), m_pStorage(Storage) {}
+	BMFont(IGraphics* Graphics, IStorage* Storage) : m_pGraphics(Graphics), m_pStorage(Storage)
+	{
+		info.fontName = 0;
+	}
+
+	~BMFont()
+	{
+		if (info.fontName)
+			mem_free(info.fontName);
+	}
 
 	bool Init(std::string filename)
 	{
@@ -167,7 +176,7 @@ public:
 		io_read(f, &info, sizeof(BMFont::InfoBlock) - sizeof(char*));
 
 		int fontNameSize = blockSize - (sizeof(BMFont::InfoBlock) - sizeof(char*));
-		info.fontName = new char[fontNameSize];
+		info.fontName = (char*)mem_alloc(fontNameSize, 1);
 		io_read(f, info.fontName, fontNameSize);
 		dbg_msg("bmfont", "Font name is '%s'", info.fontName);
 
