@@ -62,6 +62,15 @@ APP_TITLE 	:= DDNet
 APP_DESCRIPTION := 3DS port
 APP_AUTHOR 	:= Headshotnoby
 
+CIA_BANNER_BIN	:= $(TOPDIR)/cia/banner.bin
+CIA_ICON_BIN	:= $(TOPDIR)/ddnet-3ds.smdh
+CIA_SPEC_RSF	:= $(TOPDIR)/cia/spec.rsf
+ifeq ($(OS),Windows_NT)
+	MAKEROM_ZIP := makerom-v0.18.4-win_x86_64.zip
+else
+	MAKEROM_ZIP := makerom-v0.18.4-ubuntu_x86_64.zip
+endif
+
 #ROMFS		:=	romfs
 #GFXBUILD	:=	$(ROMFS)/gfx
 
@@ -227,6 +236,14 @@ else
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
+$(OUTPUT).cia	: $(OUTPUT).3dsx makerom
+	./makerom -f cia -o "$(OUTPUT).cia" -elf "$(OUTPUT).elf" -rsf "$(CIA_SPEC_RSF)" -icon "$(CIA_ICON_BIN)" -banner "$(CIA_BANNER_BIN)" -exefslogo -target t
+
+makerom:
+	wget https://github.com/3DSGuy/Project_CTR/releases/download/makerom-v0.18.4/$(MAKEROM_ZIP)
+	unzip $(MAKEROM_ZIP)
+	chmod +x makerom
+
 $(OUTPUT).3dsx	:	$(OUTPUT).elf $(_3DSXDEPS)
 
 $(OFILES_SOURCES) : $(HFILES)
