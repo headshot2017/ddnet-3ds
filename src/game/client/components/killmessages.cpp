@@ -10,6 +10,8 @@
 #include <game/client/animstate.h>
 #include "killmessages.h"
 
+static float Scale = 1.5f;
+
 void CKillMessages::OnReset()
 {
 	m_KillmsgCurrent = 0;
@@ -38,6 +40,9 @@ void CKillMessages::OnMessage(int MsgType, void *pRawMsg)
 		Kill.m_ModeSpecial = pMsg->m_ModeSpecial;
 		Kill.m_Tick = Client()->GameTick();
 
+		Kill.m_VictimRenderInfo.m_Size *= Scale;
+		Kill.m_KillerRenderInfo.m_Size *= Scale;
+
 		// add the message
 		m_KillmsgCurrent = (m_KillmsgCurrent+1)%MAX_KILLMSGS;
 		m_aKillmsgs[m_KillmsgCurrent] = Kill;
@@ -64,7 +69,7 @@ void CKillMessages::OnRender()
 		if(Client()->GameTick() > m_aKillmsgs[r].m_Tick+50*10)
 			continue;
 
-		float FontSize = 36.0f;
+		float FontSize = 36.0f*Scale;
 		float KillerNameW = TextRender()->TextWidth(0, FontSize, m_aKillmsgs[r].m_aKillerName, -1);
 		float VictimNameW = TextRender()->TextWidth(0, FontSize, m_aKillmsgs[r].m_aVictimName, -1);
 
@@ -81,7 +86,7 @@ void CKillMessages::OnRender()
 		TextRender()->TextColor(1.0, 1.0, 1.0, 1.0);
 
 		// render victim tee
-		x -= 24.0f;
+		x -= 24.0f*Scale;
 
 		if(m_pClient->m_Snap.m_pGameInfoObj && m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags&GAMEFLAG_FLAGS)
 		{
@@ -96,27 +101,27 @@ void CKillMessages::OnRender()
 				else
 					RenderTools()->SelectSprite(SPRITE_FLAG_RED);
 
-				float Size = 56.0f;
+				float Size = 56.0f*Scale;
 				IGraphics::CQuadItem QuadItem(x, y-16, Size/2, Size);
 				Graphics()->QuadsDrawTL(&QuadItem, 1);
 				Graphics()->QuadsEnd();
 			}
 		}
 
-		RenderTools()->RenderTee(CAnimState::GetIdle(), &m_aKillmsgs[r].m_VictimRenderInfo, EMOTE_PAIN, vec2(-1,0), vec2(x, y+28));
-		x -= 32.0f;
+		RenderTools()->RenderTee(CAnimState::GetIdle(), &m_aKillmsgs[r].m_VictimRenderInfo, EMOTE_PAIN, vec2(-1,0), vec2(x, y+28*Scale));
+		x -= 32.0f*Scale;
 
 		// render weapon
-		x -= 44.0f;
+		x -= 44.0f*Scale;
 		if (m_aKillmsgs[r].m_Weapon >= 0)
 		{
 			Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GAME].m_Id);
 			Graphics()->QuadsBegin();
 			RenderTools()->SelectSprite(g_pData->m_Weapons.m_aId[m_aKillmsgs[r].m_Weapon].m_pSpriteBody);
-			RenderTools()->DrawSprite(x, y+28, 96);
+			RenderTools()->DrawSprite(x, y+28*Scale, 96*Scale);
 			Graphics()->QuadsEnd();
 		}
-		x -= 52.0f;
+		x -= 52.0f*Scale;
 
 		if(m_aKillmsgs[r].m_VictimID != m_aKillmsgs[r].m_KillerID)
 		{
@@ -133,23 +138,23 @@ void CKillMessages::OnRender()
 					else
 						RenderTools()->SelectSprite(SPRITE_FLAG_RED, SPRITE_FLAG_FLIP_X);
 
-					float Size = 56.0f;
-					IGraphics::CQuadItem QuadItem(x-56, y-16, Size/2, Size);
+					float Size = 56.0f*Scale;
+					IGraphics::CQuadItem QuadItem(x-56*Scale, y-16*Scale, Size/2, Size);
 					Graphics()->QuadsDrawTL(&QuadItem, 1);
 					Graphics()->QuadsEnd();
 				}
 			}
 
 			// render killer tee
-			x -= 24.0f;
-			RenderTools()->RenderTee(CAnimState::GetIdle(), &m_aKillmsgs[r].m_KillerRenderInfo, EMOTE_ANGRY, vec2(1,0), vec2(x, y+28));
-			x -= 32.0f;
+			x -= 24.0f*Scale;
+			RenderTools()->RenderTee(CAnimState::GetIdle(), &m_aKillmsgs[r].m_KillerRenderInfo, EMOTE_ANGRY, vec2(1,0), vec2(x, y+28*Scale));
+			x -= 32.0f*Scale;
 
 			// render killer name
 			x -= KillerNameW;
 			TextRender()->Text(0, x, y, FontSize, m_aKillmsgs[r].m_aKillerName, -1);
 		}
 
-		y += 46.0f;
+		y += 46.0f*Scale;
 	}
 }
