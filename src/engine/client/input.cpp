@@ -1,5 +1,6 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
+#include <vector>
 #include <unordered_map>
 #include <base/system.h>
 #include <engine/shared/config.h>
@@ -18,17 +19,17 @@
 #include "keynames.h"
 #undef KEYS_INCLUDE
 
-std::unordered_map<int, int> _3DSkeys = {
-	{KEY_LEFT, KEY_a},
-	{KEY_RIGHT, KEY_d},
-	{KEY_UP, KEY_SPACE},
-	{KEY_A, KEY_RETURN},
-	{KEY_B, KEY_SPACE},
-	{KEY_Y, KEY_MOUSE_1},
-	{KEY_TOUCH, KEY_MOUSE_1},
-	{KEY_L, KEY_MOUSE_2},
-	{KEY_R, KEY_MOUSE_WHEEL_DOWN},
-	{KEY_START, KEY_ESCAPE},
+std::unordered_map<int, std::vector<int> > _3DSkeys = {
+	{KEY_LEFT, {KEY_a, KEY_MINUS}},
+	{KEY_RIGHT, {KEY_d, KEY_EQUALS}},
+	{KEY_UP, {KEY_SPACE}},
+	{KEY_A, {KEY_RETURN}},
+	{KEY_B, {KEY_SPACE}},
+	{KEY_Y, {KEY_MOUSE_1}},
+	{KEY_TOUCH, {KEY_MOUSE_1}},
+	{KEY_L, {KEY_MOUSE_2}},
+	{KEY_R, {KEY_MOUSE_WHEEL_DOWN}},
+	{KEY_START, {KEY_ESCAPE}},
 };
 
 void CInput::AddEvent(int Unicode, int Key, int Flags)
@@ -137,25 +138,28 @@ int CInput::Update()
 	if (held & KEY_L) m_aInputState[m_InputCurrent][KEY_MOUSE_2] = 1;
 
 	u32 down = hidKeysDown();
-	int Key;
 
-	for(std::unordered_map<int, int>::iterator it = _3DSkeys.begin(); it != _3DSkeys.end(); ++it)
+	for(auto it = _3DSkeys.begin(); it != _3DSkeys.end(); ++it)
 	{
 		if (!(down & it->first)) continue;
-		Key = it->second;
-		m_aInputCount[m_InputCurrent][Key].m_Presses++;
-		m_aInputState[m_InputCurrent][Key] = 1;
-		AddEvent(0, Key, IInput::FLAG_PRESS);
+		for (int& Key : it->second)
+		{
+			m_aInputCount[m_InputCurrent][Key].m_Presses++;
+			m_aInputState[m_InputCurrent][Key] = 1;
+			AddEvent(0, Key, IInput::FLAG_PRESS);
+		}
 	}
 
 	u32 up = hidKeysUp();
 
-	for(std::unordered_map<int, int>::iterator it = _3DSkeys.begin(); it != _3DSkeys.end(); ++it)
+	for(auto it = _3DSkeys.begin(); it != _3DSkeys.end(); ++it)
 	{
 		if (!(up & it->first)) continue;
-		Key = it->second;
-		m_aInputCount[m_InputCurrent][Key].m_Presses++;
-		AddEvent(0, Key, IInput::FLAG_RELEASE);
+		for (int& Key : it->second)
+		{
+			m_aInputCount[m_InputCurrent][Key].m_Presses++;
+			AddEvent(0, Key, IInput::FLAG_RELEASE);
+		}
 	}
 
 	/*
