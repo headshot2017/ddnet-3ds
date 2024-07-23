@@ -140,7 +140,7 @@ CGraphics_3DS::CGraphics_3DS()
 
 void CGraphics_3DS::ClipEnable(int x, int y, int w, int h)
 {
-	//C3D_SetScissor(GPU_SCISSOR_NORMAL, x, y, x+w, y+h);
+	C3D_SetScissor(GPU_SCISSOR_NORMAL, 240-y-h-1, 320-x-w-1, 240-y-1, 320-x-1);
 }
 
 void CGraphics_3DS::ClipDisable()
