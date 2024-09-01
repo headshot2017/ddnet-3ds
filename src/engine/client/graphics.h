@@ -3,8 +3,6 @@
 #ifndef ENGINE_CLIENT_GRAPHICS_H
 #define ENGINE_CLIENT_GRAPHICS_H
 
-#include <citro3d.h>
-
 class CGraphics_3DS : public IEngineGraphics
 {
 protected:
@@ -32,6 +30,7 @@ protected:
 		DRAWING_LINES=2
 	};
 
+	uint16_t* m_aIndexBuf;
 	CVertex* m_aVertices;
 	int m_NumVertices;
 
@@ -63,6 +62,9 @@ protected:
 	CTexture m_aTextures[MAX_TEXTURES];
 	int m_FirstFreeTexture;
 	int m_TextureMemoryUsage;
+
+	void SetVertexSource(int startVertex);
+	void UpdateTexEnv();
 
 	void Flush();
 	void AddVertices(int Count);

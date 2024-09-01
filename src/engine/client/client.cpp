@@ -3265,6 +3265,9 @@ int main(int argc, const char **argv) // ignore_convention
 	// for New 3DS
 	osSetSpeedupEnable(true);
 
+	gfxInitDefault();
+	consoleInit(GFX_TOP, NULL);
+
 	CClient *pClient = CreateClient();
 	IKernel *pKernel = IKernel::Create();
 	pKernel->RegisterInterface(pClient);

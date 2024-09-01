@@ -13,8 +13,13 @@
 #include <engine/keys.h>
 #include <engine/console.h>
 
+#include <3ds.h>
 #include <math.h> // cosf, sinf
 
+#define BUFFER_BASE_PADDR OS_VRAM_PADDR // VRAM physical address
+extern "C" {
+	#include "citro3d/citro3d.c"
+}
 #include "graphics.h"
 #include "colored_shbin.h"
 #include "textured_shbin.h"
@@ -34,9 +39,58 @@ struct Shader {
 };
 static Shader* currShader;
 static Shader shaders[2];
-static C3D_RenderTarget* bottomTarget;
+static C3D_RenderTarget bottomTarget;
 static int m_CurrVertices = 0;
 static int m_StartVertex = 0;
+
+void CGraphics_3DS::SetVertexSource(int startVertex)
+{
+	// https://github.com/devkitPro/citro3d/issues/47
+	// "Fyi the permutation specifies the order in which the attributes are stored in the buffer, LSB first. So 0x210 indicates attributes 0, 1 & 2."
+	const void* data;
+	int stride, attribs, permutation;
+
+	data    = m_aVertices + startVertex;
+	stride  = sizeof(CVertex);
+	if (currShader == &shaders[1]) {
+		attribs = 3;
+		permutation = 0x210;
+	} else {
+		attribs = 2;
+		permutation = 0x10;
+	}
+
+	u32 pa = osConvertVirtToPhys(data);
+	u32 args[3]; // GPUREG_ATTRIBBUFFER0_OFFSET, GPUREG_ATTRIBBUFFER0_CONFIG1, GPUREG_ATTRIBBUFFER0_CONFIG2
+
+	args[0] = pa - BUFFER_BASE_PADDR;
+	args[1] = permutation;
+	args[2] = (stride << 16) | (attribs << 28);
+
+	GPUCMD_AddIncrementalWrites(GPUREG_ATTRIBBUFFER0_OFFSET, args, 3);
+	// NOTE: Can't use GPUREG_VERTEX_OFFSET, it only works when drawing non-indexed arrays
+}
+
+void CGraphics_3DS::UpdateTexEnv()
+{
+	int func, source;
+	
+	if (currShader == &shaders[1]) {
+		// Configure the first fragment shading substage to blend the texture color with
+  		// the vertex color (calculated by the vertex shader using a lighting algorithm)
+  		// See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight	
+  		source = GPU_TEVSOURCES(GPU_TEXTURE0, GPU_PRIMARY_COLOR, 0);
+ 		func   = GPU_MODULATE;
+ 	} else {
+ 		// Configure the first fragment shading substage to just pass through the vertex color
+		// See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
+		source = GPU_TEVSOURCES(GPU_PRIMARY_COLOR, 0, 0);
+		func   = GPU_REPLACE;
+ 	}
+
+	GPUCMD_AddWrite(GPUREG_TEXENV0_SOURCE,   source | (source << 16));
+	GPUCMD_AddWrite(GPUREG_TEXENV0_COMBINER, func   | (func   << 16));
+}
 
 void CGraphics_3DS::Flush()
 {
@@ -46,7 +100,12 @@ void CGraphics_3DS::Flush()
 	if(m_RenderEnable)
 	{
 		int ThisBatch = m_NumVertices - m_StartVertex;
-		C3D_DrawArrays(GPU_TRIANGLES, m_StartVertex, ThisBatch);
+		SetVertexSource(m_StartVertex);
+
+		u32 pa = osConvertVirtToPhys(m_aIndexBuf);
+		GPUCMD_AddWrite(GPUREG_INDEXBUFFER_CONFIG, (pa - BUFFER_BASE_PADDR) | (C3D_UNSIGNED_SHORT << 31));
+
+		C3D_DrawElements(GPU_TRIANGLES, ThisBatch);
 		m_StartVertex = m_NumVertices;
 	}
 
@@ -187,7 +246,7 @@ void CGraphics_3DS::MapScreen(float TopLeftX, float TopLeftY, float BottomRightX
 
 	Mtx_OrthoTilt(&projection, m_ScreenX0, m_ScreenX1, m_ScreenY1, m_ScreenY0, -10.0f, 10.0f, true);
 	for (int i=0; i<2; i++)
-		C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, shaders[i].uf_projection, &projection);
+		C3D_FVUnifMtx4x4(shaders[i].uf_projection, &projection);
 }
 
 void CGraphics_3DS::GetScreen(float *pTopLeftX, float *pTopLeftY, float *pBottomRightX, float *pBottomRightY)
@@ -342,19 +401,29 @@ int CGraphics_3DS::LoadTextureRaw(int Width, int Height, int Format, const void 
 		PixelSize = 3;
 
 	C3D_Tex* cTex = &m_aTextures[Tex].m_Tex;
-	C3D_TexInit(cTex, Width, Height, (PixelSize==4) ? GPU_RGBA8 : GPU_RGB8);
-	u32* data = (u32*)malloc(Width*Height*PixelSize);
-	if (!data)
+	u32 size = Width * Height * PixelSize;
+	cTex->data = linearAlloc(size);
+	if (!cTex->data)
 	{
 		if (pTmpData) mem_free(pTmpData);
 		return m_InvalidTexture;
 	}
 
-	ToMortonTexture(cTex, data, (u32*)pTexData, 0, 0, Width, Height);
+	cTex->width  = Width;
+	cTex->height = Height;
+	cTex->param  = GPU_TEXTURE_MODE(GPU_TEX_2D) |
+		GPU_TEXTURE_MAG_FILTER(GPU_LINEAR)  | GPU_TEXTURE_MIN_FILTER(GPU_LINEAR) |
+		GPU_TEXTURE_WRAP_S(GPU_REPEAT)      | GPU_TEXTURE_WRAP_T(GPU_REPEAT);
+	cTex->fmt    = (PixelSize==4) ? GPU_RGBA8 : GPU_RGB8;
+	cTex->size   = size;
+
+	cTex->border   = 0;
+	cTex->lodBias  = 0;
+	cTex->maxLevel = 0;
+	cTex->minLevel = 0;
+
+	ToMortonTexture(cTex, (u32*)cTex->data, (u32*)pTexData, 0, 0, Width, Height);
 	if (pTmpData) mem_free(pTmpData);
-	C3D_TexSetFilter(cTex, GPU_LINEAR, GPU_LINEAR);
-	C3D_TexUpload(cTex, data);
-	free(data);
 
 	// calculate memory usage
 	{
@@ -463,37 +532,13 @@ void CGraphics_3DS::TextureSet(int TextureID)
 	AttrInfo_AddLoader(attrInfo, 1, GPU_FLOAT, 4); // v1=color
 	if (TextureID != -1) AttrInfo_AddLoader(attrInfo, 2, GPU_FLOAT, 2); // v2=texcoord0
 
-	// Configure buffers
-	C3D_BufInfo* bufInfo = C3D_GetBufInfo();
-	BufInfo_Init(bufInfo);
-	if (TextureID == -1)
-		BufInfo_Add(bufInfo, m_aVertices, sizeof(CVertex), 2, 0x10);
-	else
-		BufInfo_Add(bufInfo, m_aVertices, sizeof(CVertex), 3, 0x210);
-
-	C3D_TexEnv* env = C3D_GetTexEnv(0);
-	C3D_TexEnvInit(env);
-	if (TextureID == -1)
-	{
-		// Configure the first fragment shading substage to just pass through the vertex color
-		// See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
-		C3D_TexEnvSrc(env, C3D_Both, GPU_PRIMARY_COLOR, (GPU_TEVSRC)0, (GPU_TEVSRC)0);
-		C3D_TexEnvFunc(env, C3D_Both, GPU_REPLACE);
-	}
-	else
-	{
-		// Configure the first fragment shading substage to blend the texture color with
-		// the vertex color (calculated by the vertex shader using a lighting algorithm)
-		// See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
-		C3D_TexEnvSrc(env, C3D_Both, GPU_TEXTURE0, GPU_PRIMARY_COLOR, (GPU_TEVSRC)0);
-		C3D_TexEnvFunc(env, C3D_Both, GPU_MODULATE);
-	}
+	UpdateTexEnv();
 }
 
 void CGraphics_3DS::Clear(float r, float g, float b)
 {
 	u32 color = ((u8)(r*255) << 24) | ((u8)(g*255) << 16) | ((u8)(b*255) << 8) | 0xFF;
-	C3D_RenderTargetClear(bottomTarget, C3D_CLEAR_ALL, color, 0);
+	C3D_RenderTargetClear(&bottomTarget, C3D_CLEAR_ALL, color, 0);
 }
 
 void CGraphics_3DS::QuadsBegin()
@@ -771,19 +816,18 @@ int CGraphics_3DS::Init()
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
 
 	// Initialize graphics
-	gfxInitDefault();
-	C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
-
-	consoleInit(GFX_TOP, NULL);
+	C3D_Init(C3D_DEFAULT_CMDBUF_SIZE*4);
 
 	// Initialize the render target
-	bottomTarget = C3D_RenderTargetCreate(240, 320, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
-	C3D_RenderTargetSetOutput(bottomTarget, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
+	C3D_RenderTargetInit(&bottomTarget, 240, 320);
+	C3D_RenderTargetColor(&bottomTarget, GPU_RB_RGBA8);
+	C3D_RenderTargetSetOutput(&bottomTarget, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
 
 	m_ScreenWidth = g_Config.m_GfxScreenWidth = 320;
 	m_ScreenHeight = g_Config.m_GfxScreenHeight = 240;
 
 	m_aVertices = (CVertex*)linearAlloc(sizeof(CVertex)*MAX_VERTICES);
+	m_aIndexBuf = (uint16_t*)linearAlloc(sizeof(uint16_t)*MAX_VERTICES);
 
 	for (int i=0; i<2; i++)
 	{
@@ -806,25 +850,16 @@ int CGraphics_3DS::Init()
 	AttrInfo_AddLoader(attrInfo, 0, GPU_FLOAT, 3); // v0=position
 	AttrInfo_AddLoader(attrInfo, 1, GPU_FLOAT, 4); // v1=color
 
-	// Configure buffers
-	C3D_BufInfo* bufInfo = C3D_GetBufInfo();
-	BufInfo_Init(bufInfo);
-	BufInfo_Add(bufInfo, m_aVertices, sizeof(CVertex), 2, 0x10);
-
-	// Configure the first fragment shading substage to just pass through the vertex color
-	// See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
-	C3D_TexEnv* env = C3D_GetTexEnv(0);
-	C3D_TexEnvInit(env);
-	C3D_TexEnvSrc(env, C3D_Both, GPU_PRIMARY_COLOR, (GPU_TEVSRC)0, (GPU_TEVSRC)0);
-	C3D_TexEnvFunc(env, C3D_Both, GPU_REPLACE);
-
 	// Use untextured shader by default
 	currShader = &shaders[0];
 	C3D_BindProgram(&currShader->program);
 
 	// Set all z to -5.0f
 	for(int i = 0; i < MAX_VERTICES; i++)
+	{
 		m_aVertices[i].m_Pos.z = -5.0f;
+		m_aIndexBuf[i] = (uint16_t)(i);
+	}
 
 	// init textures
 	m_FirstFreeTexture = 0;
@@ -836,7 +871,6 @@ int CGraphics_3DS::Init()
 	C3D_CullFace(GPU_CULL_NONE);
 	C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_ALL);
 	C3D_AlphaTest(true, GPU_GREATER, 0);
-	C3D_BlendingColor(0);
 
 	// create null texture, will get id=0
 	static const unsigned char aNullTextureData[] = {
@@ -848,8 +882,8 @@ int CGraphics_3DS::Init()
 
 	m_InvalidTexture = LoadTextureRaw(4,4,CImageInfo::FORMAT_RGBA,aNullTextureData,CImageInfo::FORMAT_RGBA,TEXLOAD_NORESAMPLE);
 
-	C3D_FrameBegin((g_Config.m_GfxVsync) ? C3D_FRAME_SYNCDRAW : 0);
-	C3D_FrameDrawOn(bottomTarget);
+	C3D_FrameBegin(0);
+	C3D_FrameDrawOn(&bottomTarget);
 
 	return 0;
 }
@@ -909,8 +943,8 @@ void CGraphics_3DS::Swap()
 	m_StartVertex = 0;
 	m_NumVertices = 0;
 
-	C3D_FrameBegin((g_Config.m_GfxVsync) ? C3D_FRAME_SYNCDRAW : 0);
-	C3D_FrameDrawOn(bottomTarget);
+	C3D_FrameBegin(0);
+	C3D_FrameDrawOn(&bottomTarget);
 }
 
 
