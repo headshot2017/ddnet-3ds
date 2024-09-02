@@ -1040,6 +1040,8 @@ void CClient::Render()
 		Graphics()->Clear(bg.r, bg.g, bg.b);
 	}
 
+	Graphics()->FrameBegin();
+
 	GameClient()->OnRender();
 	DebugRender();
 
@@ -1048,6 +1050,8 @@ void CClient::Render()
 		int64 Now = time_get();
 		g_Config.m_ClAntiPing = (m_PredictedTime.Get(Now)-m_GameTime[g_Config.m_ClDummy].Get(Now))*1000/(float)time_freq() > g_Config.m_ClAntiPingLimit;
 	}
+
+	Graphics()->FrameEnd();
 }
 
 vec3 CClient::GetColorV3(int v)

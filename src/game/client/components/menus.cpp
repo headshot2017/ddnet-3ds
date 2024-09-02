@@ -734,6 +734,8 @@ void CMenus::RenderLoading()
 	if(time_get()-LastLoadRender < time_freq()/60)
 		return;
 
+	Graphics()->FrameBegin();
+
 	LastLoadRender = time_get();
 
 	// need up date this here to get correct
@@ -774,6 +776,7 @@ void CMenus::RenderLoading()
 	RenderTools()->DrawRoundRect(x+40, y+h-75, (w-80)*Percent, 25, 5.0f);
 	Graphics()->QuadsEnd();
 
+	Graphics()->FrameEnd();
 	Graphics()->Swap();
 }
 

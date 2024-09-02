@@ -3,6 +3,8 @@
 #ifndef ENGINE_CLIENT_GRAPHICS_H
 #define ENGINE_CLIENT_GRAPHICS_H
 
+#include <citro3d.h>
+
 class CGraphics_3DS : public IEngineGraphics
 {
 protected:
@@ -139,6 +141,9 @@ public:
 
 	virtual void TakeScreenshot(const char *pFilename);
 	virtual void TakeCustomScreenshot(const char *pFilename);
+
+	virtual void FrameBegin();
+	virtual void FrameEnd();
 	virtual void Swap();
 
 	virtual int GetVideoModes(CVideoMode *pModes, int MaxModes);
