@@ -343,19 +343,15 @@ int CGraphics_3DS::LoadTextureRaw(int Width, int Height, int Format, const void 
 		PixelSize = 3;
 
 	C3D_Tex* cTex = &m_aTextures[Tex].m_Tex;
-	C3D_TexInit(cTex, Width, Height, (PixelSize==4) ? GPU_RGBA8 : GPU_RGB8);
-	u32* data = (u32*)malloc(Width*Height*PixelSize);
-	if (!data)
+	if (!C3D_TexInit(cTex, Width, Height, (PixelSize==4) ? GPU_RGBA8 : GPU_RGB8))
 	{
 		if (pTmpData) mem_free(pTmpData);
 		return m_InvalidTexture;
 	}
 
-	ToMortonTexture(cTex, data, (u32*)pTexData, 0, 0, Width, Height);
+	ToMortonTexture(cTex, (u32*)cTex->data, (u32*)pTexData, 0, 0, Width, Height);
 	if (pTmpData) mem_free(pTmpData);
 	C3D_TexSetFilter(cTex, GPU_LINEAR, GPU_LINEAR);
-	C3D_TexUpload(cTex, data);
-	free(data);
 
 	// calculate memory usage
 	{
