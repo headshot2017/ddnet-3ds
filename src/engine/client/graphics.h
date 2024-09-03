@@ -32,7 +32,6 @@ protected:
 		DRAWING_LINES=2
 	};
 
-	uint16_t* m_aIndexBuf;
 	CVertex* m_aVertices;
 	int m_NumVertices;
 
