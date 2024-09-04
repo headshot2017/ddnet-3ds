@@ -89,9 +89,12 @@ int CUI::ShowTextInput(const char *text, const char *hintText, char *out, int ou
 int CUI::BlockAndGetTextInput(char *text, int textLength, const char *hintText, char *out, int outSize)
 {
 #if defined(__3DS__)
+	char buf[256] = {0};
+	str_copy(buf, text, textLength);
+
 	SwkbdState swkbd;
 	swkbdInit(&swkbd, SWKBD_TYPE_NORMAL, 2, -1);
-	swkbdSetInitialText(&swkbd, text);
+	swkbdSetInitialText(&swkbd, buf);
 	swkbdSetHintText(&swkbd, hintText);
 
 	int btn = swkbdInputText(&swkbd, out, outSize);

@@ -316,7 +316,7 @@ int CMenus::DoEditBox(void *pID, const CUIRect *pRect, char *pStr, unsigned StrS
 			char buf[512] = {0};
 			ReturnValue |= UI()->BlockAndGetTextInput(pStr, StrSize, "", buf, sizeof(buf));
 			if (ReturnValue)
-				str_copy(pStr, buf, sizeof(buf));
+				str_copy(pStr, buf, StrSize);
 		}
 	}
 

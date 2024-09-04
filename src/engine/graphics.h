@@ -136,8 +136,8 @@ public:
 	virtual void TakeCustomScreenshot(const char *pFilename) = 0;
 	virtual int GetVideoModes(CVideoMode *pModes, int MaxModes) = 0;
 
-	virtual void FrameBegin() = 0;
-	virtual void FrameEnd() = 0;
+	virtual bool FrameBegin() = 0;
+	virtual bool FrameEnd() = 0;
 	virtual void Swap() = 0;
 
 	// syncronization

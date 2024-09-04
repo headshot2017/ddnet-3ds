@@ -925,16 +925,20 @@ void CGraphics_3DS::TakeCustomScreenshot(const char *pFilename)
 	
 }
 
-void CGraphics_3DS::FrameBegin()
+bool CGraphics_3DS::FrameBegin()
 {
-	C3D_FrameBegin((g_Config.m_GfxVsync) ? C3D_FRAME_SYNCDRAW : 0);
+	if (!C3D_FrameBegin((g_Config.m_GfxVsync) ? C3D_FRAME_SYNCDRAW : 0))
+		return false;
+
 	C3D_RenderTargetClear(bottomTarget, C3D_CLEAR_ALL, gClearColor, 0);
 	C3D_FrameDrawOn(bottomTarget);
+	return true;
 }
 
-void CGraphics_3DS::FrameEnd()
+bool CGraphics_3DS::FrameEnd()
 {
 	C3D_FrameEnd(0);
+	return true;
 }
 
 void CGraphics_3DS::Swap()
