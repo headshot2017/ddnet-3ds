@@ -6,7 +6,7 @@ Port of DDNet 9 to the Nintendo 3DS.
 
 To compile, install [devkitARM](https://devkitpro.org/wiki/Getting_Started) with 3DS development environment, install dependencies `3ds-curl`, `3ds-mbedtls`, `3ds-libopus`, `3ds-opusfile`, `3ds-libogg`, and run `make`.
 
-Original README follows
+Original README follows 
 
 [![DDraceNetwork](http://ddnet.tw/ddnet-small.png)](http://ddnet.tw) [![Build Status](https://circleci.com/gh/ddnet/ddnet/tree/master.png)](https://circleci.com/gh/ddnet/ddnet)
 ================================
